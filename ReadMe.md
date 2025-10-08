@@ -25,7 +25,7 @@ This is a cross-platform application that demonstrates the following features:
 
 Find the relevant code snippets in the following files:
 
-- [WebView2 in Main Page](./Presentation/MainPage.xaml)
+- [WebView2 in Main Page](./DevTKSS.UnoWebView2App/Presentation/MainPage.xaml)
 - [MainModel with MVUX State-Management](./DevTKSS.UnoWebView2App/Presentation/MainModel.cs)
 - [Attached Properties for WebView2](./DevTKSS.UnoWebView2App/Controls/WebView2Extensions.cs)
 - [Value Converters](./DevTKSS.UnoWebView2App/Converters/UriToStringConverter.cs)
