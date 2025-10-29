@@ -25,35 +25,45 @@ public partial record MainModel
         })
         .Selection(SelectedNavigationHistoryItem);
     public IState<Uri> SelectedNavigationHistoryItem => State<Uri>.Empty(this)
-        .ForEach(HistorySelectionChanged);
+                                                                  .ForEach(HistorySelectionChanged);
+    public IState<Uri> CurrentUrl => State<Uri>.Value(this, () => new Uri("https://platform.uno/"))
 
     private async ValueTask HistorySelectionChanged(object? arg, CancellationToken ct)
     {
-        _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", arg, arg?.GetType().Name);
+        _logger.LogWarning("{Methodname} Got parameter: {parameter}, this is type of: {typeOfParameter}", nameof(HistorySelectionChanged), arg, arg?.GetType().Name);
 
         if (arg is Uri uri)
         {
             await CurrentUrl.UpdateAsync(_ => uri, ct);
         }
+
+        if(arg is IImmutableList<Uri> uris && uris is { })
+        {
+            _logger.LogInformation("All selected Uri's: {uris}", string.Join(", ", uris));
+            var selectedUri = uris[0];
+            _logger.LogInformation("updating CurrentUri '{CurrentUri}', to SelectedUri '{selectedUri}", await CurrentUrl, selectedUri);
+            await CurrentUrl.UpdateAsync(_ => selectedUri, ct);
+
+        }
     }
 
-    public IState<Uri> CurrentUrl => State<Uri>.Value(this, () => new Uri("https://platform.uno/"))
-                                              .ForEach(UrlChanged);
+   
     public async Task WebNavigationCompleted(object? parameter, CancellationToken ct)
     {
-        _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
+       // _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
         if (parameter is WebView2NavigatedCommandArgs args)
         {
-            _logger.LogInformation("WebView2 Navigation Completed to: {url}", args.Sender?.Source);
+         //   _logger.LogInformation("WebView2 Navigation Completed to: {url}", args.Sender?.Source);
             // await CurrentUrl.UpdateAsync(_ => args.Sender.Source, ct);
         }
     }
     public async Task WebNavigationStarting(object? parameter, CancellationToken ct)
     {
-        _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
+       // _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
         if (parameter is WebView2NavigatedCommandArgs args && args.Args is CoreWebView2NavigationStartingEventArgs startArgs)
         {
-            _logger.LogInformation("WebView2 Navigation Starting to: {url}, this is Redirect Uri: {redirectBool}", startArgs.Uri, startArgs.IsRedirected || startArgs.Uri.Contains("redirect_uri"));
+         //   _logger.LogInformation("WebView2 Navigation Starting to: {url}, this is Redirect Uri: {redirectBool}", startArgs.Uri,
+             //   startArgs.IsRedirected || (startArgs.Uri is not null && startArgs.Uri.Contains("redirect_uri"));
             // await CurrentUrl.UpdateAsync(_ => args.Sender.Source, ct);
         }
     }
@@ -73,6 +83,7 @@ public partial record MainModel
         }
         _logger.LogInformation("Adding {url} to NavigationHistory", url);
         await WebNavigationHistory.AddAsync(url, token);
+        await WebNavigationHistory.ClearSelectionAsync(token);
         if(await WebNavigationHistory.TrySelectAsync(url, token))
         {
             _logger.LogInformation("Selected {url} in NavigationHistory", url);
@@ -85,7 +96,14 @@ public partial record MainModel
 
     public async Task DoSomething(CancellationToken token)
     {
-        _logger.LogInformation("Doing something in MainModel");
-        await _navigator.ShowMessageDialogAsync(this, content:"Hello from MainModel",title: "MainModel" ,buttons:[ new (Label: "Hello Main Model!"),new (Label:"Goodbye Main Model!")], cancellation: token);
+       // _logger.LogInformation("Doing something in MainModel");
+        await _navigator.ShowMessageDialogAsync(this, 
+            content:"Hello from MainModel",
+            title: "MainModel" ,
+            buttons:[ 
+                new (Label: "Hello Main Model!"),
+                new (Label:"Goodbye Main Model!")
+            ],
+            cancellation: token);
     }
 }

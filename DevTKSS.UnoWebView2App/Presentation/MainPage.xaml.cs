@@ -2,16 +2,16 @@ namespace DevTKSS.UnoWebView2App.Presentation;
 
 public sealed partial class MainPage : Page
 {
-   private static DependencyProperty WebViewIsNavigatingProperty { get; } =
-       DependencyProperty.Register(
-           nameof(WebViewIsNavigating),
-           typeof(bool),
-           typeof(MainPage),
-           new PropertyMetadata(default(bool)));
-    internal bool WebViewIsNavigating 
+    private static DependencyProperty WebViewIsNavigatingProperty { get; } =
+        DependencyProperty.Register(
+            nameof(WebViewIsNavigating),
+            typeof(bool),
+            typeof(MainPage),
+            new PropertyMetadata(default(bool)));
+    internal bool WebViewIsNavigating
     {
         get => (bool)GetValue(WebViewIsNavigatingProperty);
-        private set => SetValue(WebViewIsNavigatingProperty,value); 
+        private set => SetValue(WebViewIsNavigatingProperty, value);
     }
 
     public MainPage()
@@ -50,14 +50,14 @@ public sealed partial class MainPage : Page
 
     private void ForwardButton_Click(object sender, RoutedEventArgs e)
     {
-        this.Log().LogInformation("ForwardButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
+       // this.Log().LogInformation("ForwardButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
         if (MyWebView2.CanGoForward)
             MyWebView2.GoForward();
     }
 
     private void BackButton_Click(object sender, RoutedEventArgs e)
     {
-        this.Log().LogInformation("BackButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
+       // this.Log().LogInformation("BackButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
         if (MyWebView2.CanGoBack)
             MyWebView2.GoBack();
 
@@ -65,15 +65,15 @@ public sealed partial class MainPage : Page
 
     private void ReloadButton_Click(object sender, RoutedEventArgs e)
     {
-        this.Log().LogInformation("ReloadButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
-        if (MyWebView2?.CoreWebView2 is not null && MyWebView2.Source.IsAbsoluteUri)
+       // this.Log().LogInformation("ReloadButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
+        if (MyWebView2?.CoreWebView2 is not null && MyWebView2.Source.IsAbsoluteUri && WebView2Extensions.GetIsNavigating(MyWebView2))
             MyWebView2.Reload();
     }
 
     private void StopButton_Click(object sender, RoutedEventArgs e)
     {
-        this.Log().LogInformation("StopButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
-        if (MyWebView2?.CoreWebView2 is not null && WebViewIsNavigating)
+        // this.Log().LogInformation("StopButton_Click, WebViewIsNavigating: {WebViewIsNavigating}", WebViewIsNavigating);
+        if (MyWebView2?.CoreWebView2 is not null && WebView2Extensions.GetIsNavigating(MyWebView2))
             MyWebView2.CoreWebView2.Stop();
     }
 
