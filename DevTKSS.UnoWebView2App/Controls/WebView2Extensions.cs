@@ -1,9 +1,35 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
+using Windows.Foundation;
 namespace DevTKSS.UnoWebView2App.Controls;
-
 internal static class WebView2Extensions
 {
+    #region Event Handlers
+    private static void OnNavigationStarting(WebView2 sender, CoreWebView2NavigationStartingEventArgs args)
+            => SetIsNavigating(sender, true);
+
+    private static void OnNavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+    {
+        SetIsNavigating(sender, false);
+
+        var command = GetNavigatedCommand(sender);
+        var commandArgs = new WebView2NavigatedCommandArgs(sender, args);
+        if (command?.CanExecute(commandArgs) == true)
+        {
+            command.Execute(commandArgs);
+        }
+    }
+    private static void OnControlUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is WebView2 control)
+        {
+            control.NavigationStarting -= OnNavigationStarting;
+            control.NavigationCompleted -= OnNavigationCompleted;
+            control.Unloaded -= OnControlUnloaded;
+        }
+    }
+    #endregion
 
     #region DependencyProperty: IsNavigatingProperty
 
@@ -22,28 +48,26 @@ internal static class WebView2Extensions
 
     private static void OnIsNavigatingPropertyChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
     {
+
         if (sender is not WebView2 control)
+        {
             throw new InvalidOperationException("The attached property 'IsNavigating' can only be applied to a WebView2 control.");
+        }
 
-        // Unsubscribe first to avoid duplicate handlers
-        control.NavigationStarting -= OnNavigationStartingSetIsNavigating;
-        control.NavigationCompleted -= OnNavigationCompletedSetIsNavigating;
+        // Always remove previous event handlers to prevent duplicate subscriptions
+        control.NavigationStarting -= OnNavigationStarting;
+        control.NavigationCompleted -= OnNavigationCompleted;
+        control.Unloaded -= OnControlUnloaded;
 
-        // Always subscribe, so IsNavigating stays in sync
-        control.NavigationStarting += OnNavigationStartingSetIsNavigating;
-        control.NavigationCompleted += OnNavigationCompletedSetIsNavigating;
-    }
-    private static void OnNavigationStartingSetIsNavigating(WebView2 sender, CoreWebView2NavigationStartingEventArgs e)
-    {
-        if (sender is WebView2 control)
-            SetIsNavigating(control, true);
+        // Only subscribe if the new value is true
+        if (e.NewValue is bool isEnabled && isEnabled)
+        {
+            control.NavigationStarting += OnNavigationStarting;
+            control.NavigationCompleted += OnNavigationCompleted;
+            control.Unloaded += OnControlUnloaded;
+        }
     }
 
-    private static void OnNavigationCompletedSetIsNavigating(WebView2 sender, CoreWebView2NavigationCompletedEventArgs e)
-    {
-        if (sender is WebView2 control)
-            SetIsNavigating(control, false);
-    }
     #endregion
 
     #region DependencyProperty: NavigatedCommand
@@ -62,55 +86,26 @@ internal static class WebView2Extensions
 
     private static void OnNavigatedCommandChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
     {
-        if (sender is not WebView2 control) throw new InvalidOperationException("The attached property 'NavigatedCommand' can only be applied to a WebView2 control.");
-
-        if (e.OldValue is { }) control.NavigationCompleted -= OnNavigationCompleted;
-        if (e.NewValue is { }) control.NavigationCompleted += OnNavigationCompleted;
-    }
-
-    private static void OnNavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
-    {
-        var command = GetNavigatedCommand(sender);
-        var commandArgs = new WebView2NavigatedCommandArgs(sender, args);
-        if (command?.CanExecute(commandArgs) == true)
+        if (sender is not WebView2 control)
         {
-            command.Execute(commandArgs);
+            throw new InvalidOperationException("The attached property 'IsNavigating' can only be applied to a WebView2 control.");
+        }
+
+        // Always remove previous event handlers to prevent duplicate subscriptions
+        control.NavigationStarting -= OnNavigationStarting;
+        control.NavigationCompleted -= OnNavigationCompleted;
+        control.Unloaded -= OnControlUnloaded;
+
+        // Only subscribe if the new value is true
+        if (e.NewValue is bool isEnabled && isEnabled)
+        {
+            control.NavigationStarting += OnNavigationStarting;
+            control.NavigationCompleted += OnNavigationCompleted;
+            control.Unloaded += OnControlUnloaded;
         }
     }
+
      #endregion
 
-    #region DependencyProperty: NavigatingCommand
-
-    public static DependencyProperty NavigatingCommandProperty { [DynamicDependency(nameof(GetNavigatingCommand))] get; } =
-        DependencyProperty.RegisterAttached(
-            "NavigatingCommand",
-            typeof(ICommand),
-            typeof(WebView2Extensions),
-            new PropertyMetadata(default(ICommand), OnNavigatingCommandChanged));
-
-    [DynamicDependency(nameof(SetNavigatingCommand))]
-    public static ICommand GetNavigatingCommand(DependencyObject obj) => (ICommand)obj.GetValue(NavigatingCommandProperty);
-    [DynamicDependency(nameof(GetNavigatingCommand))]
-    public static void SetNavigatingCommand(DependencyObject obj, ICommand value) => obj.SetValue(NavigatingCommandProperty, value);
-
-    private static void OnNavigatingCommandChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
-    {
-        if (sender is not WebView2 control) throw new InvalidOperationException("The attached property 'NavigatingCommand' can only be applied to a WebView2 control.");
-
-        if (e.OldValue is { }) control.NavigationStarting -= OnNavigationStarting;
-        if (e.NewValue is { }) control.NavigationStarting += OnNavigationStarting;
-    }
-
-    private static void OnNavigationStarting(WebView2 sender, CoreWebView2NavigationStartingEventArgs args)
-    {
-        var command = GetNavigatingCommand(sender);
-        var commandArgs = new WebView2NavigatedCommandArgs(sender, args);
-        if (command?.CanExecute(commandArgs) == true)
-        {
-            command.Execute(commandArgs);
-        }
-    }
-    #endregion
-
 }
-public record  WebView2NavigatedCommandArgs(WebView2 Sender, object Args);
+public record  WebView2NavigatedCommandArgs(WebView2 Sender, CoreWebView2NavigationCompletedEventArgs Args);

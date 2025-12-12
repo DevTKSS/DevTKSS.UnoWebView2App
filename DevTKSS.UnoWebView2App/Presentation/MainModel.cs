@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.Web.WebView2.Core;
 
 namespace DevTKSS.UnoWebView2App.Presentation;
@@ -14,6 +15,7 @@ public partial record MainModel
 
     }
     public string? Title { get; }
+
     public IListState<Uri> WebNavigationHistory => ListState<Uri>.Async(this,
         async ct =>
         {
@@ -27,6 +29,11 @@ public partial record MainModel
     public IState<Uri> SelectedNavigationHistoryItem => State<Uri>.Empty(this)
                                                                   .ForEach(HistorySelectionChanged);
     public IState<Uri> CurrentUrl => State<Uri>.Value(this, () => new Uri("https://platform.uno/"))
+                                               .ForEach(CurrentUrlChanged);
+    public IState<Uri> AddressBarUrl => State<Uri>.Async(this, async (ct) => await CurrentUrl.Value(ct))
+                                                  .ForEach(AddressBarChanged);
+
+   
 
     private async ValueTask HistorySelectionChanged(object? arg, CancellationToken ct)
     {
@@ -34,7 +41,8 @@ public partial record MainModel
 
         if (arg is Uri uri)
         {
-            await CurrentUrl.UpdateAsync(_ => uri, ct);
+            _logger.LogInformation("{MethodName} Selected Uri from {caller}: {uri}",nameof(HistorySelectionChanged), nameof(CurrentUrl), uri);
+            await CurrentUrl.UpdateAsync(oldItem => uri, ct);
         }
 
         if(arg is IImmutableList<Uri> uris && uris is { })
@@ -42,32 +50,11 @@ public partial record MainModel
             _logger.LogInformation("All selected Uri's: {uris}", string.Join(", ", uris));
             var selectedUri = uris[0];
             _logger.LogInformation("updating CurrentUri '{CurrentUri}', to SelectedUri '{selectedUri}", await CurrentUrl, selectedUri);
-            await CurrentUrl.UpdateAsync(_ => selectedUri, ct);
+            await CurrentUrl.UpdateAsync(oldItem => selectedUri, ct);
 
         }
     }
-
-   
-    public async Task WebNavigationCompleted(object? parameter, CancellationToken ct)
-    {
-       // _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
-        if (parameter is WebView2NavigatedCommandArgs args)
-        {
-         //   _logger.LogInformation("WebView2 Navigation Completed to: {url}", args.Sender?.Source);
-            // await CurrentUrl.UpdateAsync(_ => args.Sender.Source, ct);
-        }
-    }
-    public async Task WebNavigationStarting(object? parameter, CancellationToken ct)
-    {
-       // _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
-        if (parameter is WebView2NavigatedCommandArgs args && args.Args is CoreWebView2NavigationStartingEventArgs startArgs)
-        {
-         //   _logger.LogInformation("WebView2 Navigation Starting to: {url}, this is Redirect Uri: {redirectBool}", startArgs.Uri,
-             //   startArgs.IsRedirected || (startArgs.Uri is not null && startArgs.Uri.Contains("redirect_uri"));
-            // await CurrentUrl.UpdateAsync(_ => args.Sender.Source, ct);
-        }
-    }
-    public async ValueTask UrlChanged(Uri? url, CancellationToken token)
+    public async ValueTask CurrentUrlChanged(Uri? url, CancellationToken token)
     {
         if (url is null)
         {
@@ -75,25 +62,65 @@ public partial record MainModel
             return;
         }
 
-        _logger.LogInformation("Url changed to: '{url}' checking if this is matching the last entry in Navigation History...", url);
+        if (!url.ToString().EndsWith('/'))
+        {
+            _logger.LogTrace("Url changed to: '{url}' does not end with '/', not adding to NavigationHistory", url);
+            return;
+        }
+
+        _logger.LogTrace("Url changed to: '{url}' checking if this is matching the last entry in Navigation History...", url);
         if(await WebNavigationHistory.GetSelectedItem(token) is { } current && current == url)
         {
             _logger.LogInformation("Url is already the current selected item in NavigationHistory, not adding duplicate.");
             return;
         }
-        _logger.LogInformation("Adding {url} to NavigationHistory", url);
+        var values = await WebNavigationHistory.Value(ct:token);
+        if(values[values.Count - 1] == url)
+        {
+            _logger.LogInformation("Url is already the last item in NavigationHistory, not adding duplicate.");
+            return;
+        }
+        _logger.LogInformation("{methodname} Adding {url} to NavigationHistory",nameof(CurrentUrlChanged), url);
         await WebNavigationHistory.AddAsync(url, token);
-        await WebNavigationHistory.ClearSelectionAsync(token);
-        if(await WebNavigationHistory.TrySelectAsync(url, token))
+        // await WebNavigationHistory.ClearSelectionAsync(token);
+        if (await WebNavigationHistory.TrySelectAsync(url, token))
         {
             _logger.LogInformation("Selected {url} in NavigationHistory", url);
+            await AddressBarUrl.UpdateAsync(oldItem => url, token);
         }
         else
         {
             _logger.LogWarning("Failed to select {url} in NavigationHistory after adding it.", url);
         }
     }
+     private async ValueTask AddressBarChanged(Uri? arg, CancellationToken ct)
+    {
+        var currentUrl = await CurrentUrl;
+        if (arg is Uri uri && currentUrl != uri && uri.ToString().EndsWith('/') && uri.IsWellFormedOriginalString())
+        {
+            _logger.LogInformation("{Methodname} Updating {CurrentUrl} to match {AddressBarUrl} with new Value: '{newUrl}'", nameof(AddressBarChanged), nameof(CurrentUrl), nameof(AddressBarUrl), uri);
 
+            await CurrentUrl.UpdateAsync(oldItem => uri, ct);
+        }
+    }
+    public async ValueTask AskForUpdate(object? item, CancellationToken ct)
+    {
+        _logger.LogInformation("{methodname} was requested for Update with: {item}", nameof(AskForUpdate), item);
+        if (item is Uri uriItem && uriItem.ToString().EndsWith('/'))
+        {
+            await CurrentUrl.UpdateAsync(oldItem => uriItem, ct);
+        }
+    }
+
+    public async Task WebNavigationCompleted(object? parameter, CancellationToken ct)
+    {
+        // _logger.LogWarning("Got parameter: {parameter}, this is type of: {typeOfParameter}", parameter, parameter?.GetType().Name);
+        if (parameter is WebView2NavigatedCommandArgs args)
+        {
+            //   _logger.LogInformation("WebView2 Navigation Completed to: {url}", args.Sender?.Source);
+            // await CurrentUrl.UpdateAsync(_ => args.Sender.Source, ct);
+        }
+    }
     public async Task DoSomething(CancellationToken token)
     {
        // _logger.LogInformation("Doing something in MainModel");
