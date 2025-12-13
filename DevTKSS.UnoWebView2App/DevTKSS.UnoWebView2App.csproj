@@ -17,6 +17,7 @@
     <!-- Package Description -->
     <Description>UnoApp5 powered by Uno Platform.</Description>
       <UnoExtensionsVersion>7.1.0-dev.54</UnoExtensionsVersion>
+      <UnoHotDesignVersion>1.18.0-dev.417</UnoHotDesignVersion>
     <!--
       UnoFeatures let's you quickly add and manage implicit package references based on the features you want to use.
       https://aka.platform.uno/singleproject-features

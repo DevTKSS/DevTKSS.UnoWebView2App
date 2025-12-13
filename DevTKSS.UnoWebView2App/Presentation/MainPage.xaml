@@ -40,14 +40,14 @@
                     Grid.Column="0"
                     Padding="0"
                     Margin="10,0,0,0"
-                    IsEnabled="{Binding Path=MyWebView2.CanGoBack,Mode=OneWay}"
+                    IsEnabled="{x:Bind MyWebView2.CanGoBack, Mode=OneWay}"
                     HorizontalAlignment="Center"
                     Click="BackButton_Click">
                 <SymbolIcon Symbol="Back" />
             </Button>
             <Button x:Name="ForwardButton"
                     Grid.Column="1"
-                    IsEnabled="{Binding Path=MyWebView2.CanGoForward,Mode=OneWay}"
+                    IsEnabled="{x:Bind MyWebView2.CanGoForward, Mode=OneWay}"
                     HorizontalAlignment="Center"
                     Click="ForwardButton_Click">
                 <SymbolIcon Symbol="Forward" />
@@ -71,9 +71,10 @@
                          Grid.Column="4"
                          HorizontalContentAlignment="Center"
                          HorizontalAlignment="Stretch"
-                         Text="{Binding Path=AddressBarUrl ,Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource UriToStringConverter}, FallbackValue={Binding MyWebView2.Source}}" />
-                <ProgressRing IsActive="{Binding ElementName=MyWebView2, Path=(wv2:WebView2Extensions.IsNavigating), Mode=OneWay}"
-                              Grid.Column="5" />
+                         Text="{Binding Path=AddressBarUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource UriToStringConverter}, FallbackValue={Binding MyWebView2.Source}}" />
+                <ProgressRing IsActive="{x:Bind Path=WebView2IsNavigating, Mode=OneWay}"
+                              Grid.Column="5"
+                              Visibility="{x:Bind Path=WebView2IsNavigating, Converter={StaticResource FalseToCollapsedConverter}, Mode=OneWay}"/>
 
             </Grid>
             <!--#endregion-->
@@ -99,12 +100,8 @@
                         Margin="10">
                 <TextBlock x:Name="NavigationStatusBlock">
                     <Run Text="WebView2 Navigation status: " />
-                 <Run Text="{Binding ElementName=MyWebView2, Path=(wv2:WebView2Extensions.IsNavigating), Mode=OneWay}" />
+                    <Run Text="{x:Bind Path=WebView2IsNavigating, Mode=OneWay}" />
                 </TextBlock>
-                <Button Content="Do Something"
-                        Command="{Binding DoSomething}"
-                        HorizontalAlignment="Stretch"
-                        Margin="0,0,0,10" />
             </StackPanel>
         </Grid>
     </ScrollViewer>

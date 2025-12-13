@@ -2,7 +2,17 @@ namespace DevTKSS.UnoWebView2App.Presentation;
 
 public sealed partial class MainPage : Page
 {
-
+    private static DependencyProperty WebView2IsNavigatingProperty { get; } =
+        DependencyProperty.Register(
+            nameof(WebView2IsNavigating),
+            typeof(bool),
+            typeof(MainPage),
+            new PropertyMetadata(default(bool)));
+    internal bool WebView2IsNavigating
+    {
+        get => (bool)GetValue(WebView2IsNavigatingProperty);
+        private set => SetValue(WebView2IsNavigatingProperty, value);
+    }
     public MainPage()
     {
         this.InitializeComponent();
@@ -23,6 +33,17 @@ public sealed partial class MainPage : Page
         MyWebView2.CoreWebView2?.DocumentTitleChanged += (sender, _) =>
         {
             MyNavigationBar.Content = MyWebView2.CoreWebView2.DocumentTitle;
+        };
+
+        MyWebView2.NavigationStarting += (s, e) =>
+        {
+           // logger.LogInformation("NavigationStarting to: {Uri}", e.Uri);
+           WebView2IsNavigating = true;
+        };
+        MyWebView2.NavigationCompleted += (s, e) =>
+        {
+           // logger.LogInformation("NavigationCompleted to: {Uri}, IsSuccess: {IsSuccess}, WebErrorStatus: {WebErrorStatus}", MyWebView2.Source.ToString(), e.IsSuccess, e.WebErrorStatus);
+           WebView2IsNavigating = false;
         };
 
     }

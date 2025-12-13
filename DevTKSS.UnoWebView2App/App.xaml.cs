@@ -35,9 +35,7 @@ public partial class App : Application
                                 LogLevel.Warning)
 
                         // Default filters for core Uno Platform namespaces
-                        .CoreLogLevel(LogLevel.Warning)
-                        .AddFilter("Uno.Extensions.Reactive",LogLevel.Debug);
-
+                        .CoreLogLevel(LogLevel.Warning);
                     // Uno Platform namespace filter groups
                     // Uncomment individual methods to see more detailed logging
                     //// Generic Xaml events
