@@ -1,10 +1,13 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Web.WebView2.Core;
-using Windows.Foundation;
 namespace DevTKSS.UnoWebView2App.Controls;
 internal static class WebView2Extensions
 {
+    // Static logger instance for this static class using NullLogger to avoid configuration requirements
+    private static readonly ILogger Logger = NullLoggerFactory.Instance.CreateLogger("WebView2Extensions");
+
     #region Event Handlers
     private static void OnNavigationStarting(WebView2 sender, CoreWebView2NavigationStartingEventArgs args)
             => SetIsNavigating(sender, true);
@@ -19,6 +22,23 @@ internal static class WebView2Extensions
         {
             command.Execute(commandArgs);
         }
+
+        // Log only data that is reliably available in Uno WebView2
+        if (sender.Source is Uri uri)
+        {
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation("NavigationCompleted. URI: {Uri}", uri);
+            }
+            
+            return;
+        }
+
+        if (Logger.IsEnabled(LogLevel.Information))
+        {
+            Logger.LogInformation("NavigationCompleted. URI not available.");
+        }
+
     }
     private static void OnControlUnloaded(object sender, RoutedEventArgs e)
     {
@@ -27,6 +47,10 @@ internal static class WebView2Extensions
             control.NavigationStarting -= OnNavigationStarting;
             control.NavigationCompleted -= OnNavigationCompleted;
             control.Unloaded -= OnControlUnloaded;
+            if (Logger.IsEnabled(LogLevel.Debug))
+            {
+                Logger.LogDebug("Control unloaded: event handlers detached from WebView2.");
+            }
         }
     }
     #endregion
@@ -37,34 +61,47 @@ internal static class WebView2Extensions
         "IsNavigating",
         typeof(bool),
         typeof(WebView2Extensions),
-        new PropertyMetadata(default(bool),OnIsNavigatingPropertyChanged));
+        new PropertyMetadata(default(bool), OnIsNavigatingPropertyChanged));
 
     [DynamicDependency(nameof(SetIsNavigating))]
     public static bool GetIsNavigating(DependencyObject obj) => (bool)obj.GetValue(IsNavigatingProperty);
 
     [DynamicDependency(nameof(GetIsNavigating))]
-    public static void SetIsNavigating(DependencyObject obj, bool value) => obj.SetValue(IsNavigatingProperty, value);
+    public static void SetIsNavigating(DependencyObject obj, bool value)
+    {
+        obj.SetValue(IsNavigatingProperty, value);
+        if (obj is WebView2)
+        {
+            if (Logger.IsEnabled(LogLevel.Debug))
+            {
+                Logger.LogDebug("IsNavigating changed for WebView2: {IsNavigating}", value);
+            }
+        }
+    }
    
 
     private static void OnIsNavigatingPropertyChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
     {
-
+        Debug.WriteLine("OnIsNavigatingPropertyChanged called.");
         if (sender is not WebView2 control)
         {
             throw new InvalidOperationException("The attached property 'IsNavigating' can only be applied to a WebView2 control.");
         }
-
-        // Always remove previous event handlers to prevent duplicate subscriptions
+        
         control.NavigationStarting -= OnNavigationStarting;
         control.NavigationCompleted -= OnNavigationCompleted;
         control.Unloaded -= OnControlUnloaded;
 
-        // Only subscribe if the new value is true
         if (e.NewValue is bool isEnabled && isEnabled)
         {
             control.NavigationStarting += OnNavigationStarting;
             control.NavigationCompleted += OnNavigationCompleted;
             control.Unloaded += OnControlUnloaded;
+            Logger.LogTrace("IsNavigatingProperty enabled: event handlers attached.");
+        }
+        else
+        {
+            Logger.LogTrace("IsNavigatingProperty disabled: event handlers detached.");
         }
     }
 
@@ -82,7 +119,14 @@ internal static class WebView2Extensions
     [DynamicDependency(nameof(SetNavigatedCommand))]
     public static ICommand GetNavigatedCommand(DependencyObject obj) => (ICommand)obj.GetValue(NavigatedCommandProperty);
     [DynamicDependency(nameof(GetNavigatedCommand))]
-    public static void SetNavigatedCommand(DependencyObject obj, ICommand value) => obj.SetValue(NavigatedCommandProperty, value);
+    public static void SetNavigatedCommand(DependencyObject obj, ICommand value)
+    {
+        obj.SetValue(NavigatedCommandProperty, value);
+        if (obj is WebView2)
+        {
+            Logger.LogDebug("NavigatedCommand set on WebView2: {HasCommand}", value is not null);
+        }
+    }
 
     private static void OnNavigatedCommandChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
     {
@@ -91,17 +135,20 @@ internal static class WebView2Extensions
             throw new InvalidOperationException("The attached property 'IsNavigating' can only be applied to a WebView2 control.");
         }
 
-        // Always remove previous event handlers to prevent duplicate subscriptions
         control.NavigationStarting -= OnNavigationStarting;
         control.NavigationCompleted -= OnNavigationCompleted;
         control.Unloaded -= OnControlUnloaded;
 
-        // Only subscribe if the new value is true
         if (e.NewValue is bool isEnabled && isEnabled)
         {
             control.NavigationStarting += OnNavigationStarting;
             control.NavigationCompleted += OnNavigationCompleted;
             control.Unloaded += OnControlUnloaded;
+            Logger.LogTrace("NavigatedCommand changed: event handlers attached.");
+        }
+        else
+        {
+            Logger.LogTrace("NavigatedCommand changed: event handlers detached.");
         }
     }
 
